@@ -1,0 +1,42 @@
+server:
+  port: 8081
+  tomcat:
+    threads:
+      max: 32
+    max-connections: 256
+    accept-count: 32
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/authdb}
+    username: ${SPRING_DATASOURCE_USERNAME:auth}
+    password: ${SPRING_DATASOURCE_PASSWORD:auth_dev}
+    hikari:
+      maximum-pool-size: 8
+      connection-timeout: 2000
+      data-source-properties:
+        socketTimeout: 5
+        connectTimeout: 2
+        cancelSignalTimeout: 2
+  flyway:
+    enabled: true
+app:
+  auth:
+    issuer: ${APP_SECURITY_ISSUER:http://localhost:8081}
+    audience: ${APP_SECURITY_AUDIENCE:flashsale-api}
+    token-ttl: 15m
+    key-directory: ${AUTH_KEY_DIRECTORY:.local/auth-keys}
+    demo-password: ${AUTH_DEMO_PASSWORD:Demo@123}
+    admin-password: ${AUTH_ADMIN_PASSWORD:Admin@123}
+    order-service-secret: ${AUTH_ORDER_SERVICE_SECRET:order_dev_secret}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never

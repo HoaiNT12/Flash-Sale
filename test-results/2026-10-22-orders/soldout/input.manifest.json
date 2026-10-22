@@ -1,0 +1,65 @@
+{
+  "runId": "aa6c2a63ae594036a6dbc89b71270795",
+  "createdAtUtc": "2026-10-22T08:40:12.3643213Z",
+  "baseUrls": {
+    "auth": "http://localhost:18081",
+    "inventory": "http://localhost:18082",
+    "payment": "http://localhost:18083",
+    "order": "http://localhost:18084"
+  },
+  "customer": {
+    "username": "alice"
+  },
+  "productId": "33333333-3333-3333-3333-333333333333",
+  "quantity": 1,
+  "uniqueOrders": 10,
+  "duplicateRequests": 10,
+  "concurrency": 16,
+  "timeoutSeconds": 240,
+  "plannedBulkHttpRequests": 20,
+  "plannedConflictProbes": 1,
+  "keyMapping": [
+    {
+      "logicalOrderIndex": 1,
+      "idempotencyKey": "batch-aa6c2a63ae594036a6dbc89b71270795-1"
+    },
+    {
+      "logicalOrderIndex": 2,
+      "idempotencyKey": "batch-aa6c2a63ae594036a6dbc89b71270795-2"
+    },
+    {
+      "logicalOrderIndex": 3,
+      "idempotencyKey": "batch-aa6c2a63ae594036a6dbc89b71270795-3"
+    },
+    {
+      "logicalOrderIndex": 4,
+      "idempotencyKey": "batch-aa6c2a63ae594036a6dbc89b71270795-4"
+    },
+    {
+      "logicalOrderIndex": 5,
+      "idempotencyKey": "batch-aa6c2a63ae594036a6dbc89b71270795-5"
+    },
+    {
+      "logicalOrderIndex": 6,
+      "idempotencyKey": "batch-aa6c2a63ae594036a6dbc89b71270795-6"
+    },
+    {
+      "logicalOrderIndex": 7,
+      "idempotencyKey": "batch-aa6c2a63ae594036a6dbc89b71270795-7"
+    },
+    {
+      "logicalOrderIndex": 8,
+      "idempotencyKey": "batch-aa6c2a63ae594036a6dbc89b71270795-8"
+    },
+    {
+      "logicalOrderIndex": 9,
+      "idempotencyKey": "batch-aa6c2a63ae594036a6dbc89b71270795-9"
+    },
+    {
+      "logicalOrderIndex": 10,
+      "idempotencyKey": "batch-aa6c2a63ae594036a6dbc89b71270795-10"
+    }
+  ],
+  "credentialHandling": "Password and access token intentionally omitted",
+  "httpCountScope": "Checkout POST requests only; authentication, baseline reads and GET polling are excluded"
+}

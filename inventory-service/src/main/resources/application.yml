@@ -1,0 +1,38 @@
+server:
+  port: ${SERVER_PORT:8082}
+  tomcat:
+    threads:
+      max: 80
+    max-connections: 200
+    accept-count: 50
+spring:
+  application:
+    name: inventory-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/inventorydb}
+    username: ${DB_USER:inventory}
+    password: ${DB_PASSWORD:inventory_dev}
+  flyway:
+    enabled: true
+  threads:
+    virtual:
+      enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+app:
+  security:
+    jwk-set-uri: ${SECURITY_JWK_SET_URI:http://localhost:8081/.well-known/jwks.json}
+    issuer: ${SECURITY_ISSUER:http://localhost:8081}
+    audience: flashsale-api
+  catalog:
+    jdbc-url: ${CATALOG_DB_URL:}
+    username: ${CATALOG_DB_USER:inventory}
+    password: ${CATALOG_DB_PASSWORD:inventory_dev}
+demo:
+  enabled: ${DEMO_ENABLED:false}

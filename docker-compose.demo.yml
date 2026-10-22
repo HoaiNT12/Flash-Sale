@@ -1,0 +1,8 @@
+# Explicit opt-in: docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build -d --wait
+services:
+  inventory-service:
+    environment:
+      DEMO_ENABLED: "true"
+  payment-service:
+    environment:
+      DEMO_ENABLED: "true"

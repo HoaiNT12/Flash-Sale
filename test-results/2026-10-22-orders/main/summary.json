@@ -1,0 +1,71 @@
+{
+  "runId": "ab8d029a2fb1486cb4352e747be94244",
+  "status": "PASS",
+  "outputDirectory": "C:\\Users\\Admin\\OneDrive\\Documents\\java\\FlashSale\\FlashSale\\test-results\\2026-10-22-orders\\main",
+  "customer": "alice",
+  "productId": "11111111-1111-1111-1111-111111111111",
+  "quantity": 1,
+  "plannedUniqueOrders": 200,
+  "plannedDuplicateRequests": 100,
+  "plannedBulkHttpRequests": 300,
+  "plannedHttpRequests": 301,
+  "conflictProbe": {
+    "httpStatus": 409,
+    "idempotencyKey": "batch-ab8d029a2fb1486cb4352e747be94244-1",
+    "expectedHttpStatus": 409
+  },
+  "submissionDurationMs": 24470,
+  "completionDurationMs": 15903,
+  "consistencyScope": "HTTP-observed wallet/stock totals on an isolated stack; ledger/orphan checks require a separate primary DB audit",
+  "submissionAndCompletionDurationMs": 40373,
+  "observedConsistency": {
+    "stockBefore": 100,
+    "completedUnits": 100,
+    "walletDebitedVnd": 9900000.0,
+    "walletAfter": 90100000.0,
+    "expectedStockAfter": 0,
+    "walletBefore": 100000000.0,
+    "completedOrderAmountVnd": 9900000.0,
+    "stockAfter": 0
+  },
+  "duplicateIdMismatches": [],
+  "assertions": {
+    "allBulkRequestsRecorded": true,
+    "noPermanentBulkHttpErrors": true,
+    "everyLogicalOrderAcknowledged": true,
+    "noDuplicateOrderIds": true,
+    "conflictReturns409": true,
+    "allKnownOrdersTerminal": true,
+    "completedUnitsWithinBaselineStock": true,
+    "stockMatchesCompletedUnits": true,
+    "walletMatchesCompletedOrderAmounts": true
+  },
+  "actualBulkHttpRequests": 300,
+  "actualRecoveryHttpRequests": 0,
+  "actualConflictHttpRequests": 1,
+  "actualHttpRequests": 301,
+  "bulkHttpStatusCounts": {
+    "202": 300
+  },
+  "recoveryHttpStatusCounts": {},
+  "httpStatusCounts": {
+    "202": 300,
+    "409": 1
+  },
+  "requestLatencyMs": {
+    "p50": 2344.97,
+    "p95": 3179.356,
+    "p99": 3542.351
+  },
+  "distinctOrders": 200,
+  "completedOrders": 100,
+  "rejectedOrders": 100,
+  "pendingOrders": 0,
+  "rejectionReasons": {
+    "OUT_OF_STOCK": 100
+  },
+  "unacknowledgedLogicalKeys": [],
+  "totalDurationMs": 52153,
+  "finishedAtUtc": "2026-10-22T08:37:55.7954895Z",
+  "failureMessages": []
+}

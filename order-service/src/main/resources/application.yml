@@ -1,0 +1,75 @@
+server:
+  port: 8084
+  shutdown: graceful
+  tomcat:
+    max-connections: 256
+    accept-count: 32
+spring:
+  application:
+    name: order-service
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ordersdb}
+    username: ${DB_USER:orders}
+    password: ${DB_PASSWORD:orders_dev}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 2
+      connection-timeout: 1000
+      data-source-properties:
+        socketTimeout: 5
+        connectTimeout: 2
+        cancelSignalTimeout: 2
+      connection-init-sql: "SET statement_timeout = '3s'; SET lock_timeout = '1s'"
+  lifecycle:
+    timeout-per-shutdown-phase: 25s
+app:
+  saga:
+    concurrency: ${SAGA_CONCURRENCY:16}
+    max-pending: ${SAGA_MAX_PENDING:1000}
+    deadline-seconds: 120
+    max-attempts: 8
+    poll-ms: 200
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,circuitbreakers,circuitbreakerevents,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 800ms
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        max-wait-duration-in-half-open-state: 5s
+        event-consumer-buffer-size: 100
+        ignore-exceptions:
+          - vn.flashsale.order.domain.BusinessFailure
+    instances:
+      inventory:
+        base-config: default
+      payment:
+        base-config: default
+      auth:
+        base-config: default
+        minimum-number-of-calls: 5
+  bulkhead:
+    instances:
+      inventory:
+        max-concurrent-calls: 8
+        max-wait-duration: 0ms
+      payment:
+        max-concurrent-calls: 8
+        max-wait-duration: 0ms

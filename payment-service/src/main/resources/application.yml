@@ -1,0 +1,41 @@
+server:
+  port: 8083
+  tomcat:
+    max-connections: 200
+    accept-count: 32
+spring:
+  application:
+    name: payment-service
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/paymentdb}
+    username: ${DB_USER:payment}
+    password: ${DB_PASSWORD:payment_dev}
+    hikari:
+      maximum-pool-size: 16
+      minimum-idle: 2
+      connection-timeout: 500
+      validation-timeout: 500
+      data-source-properties:
+        socketTimeout: 5
+        connectTimeout: 2
+        cancelSignalTimeout: 2
+        options: -c lock_timeout=2000 -c statement_timeout=4000
+  flyway:
+    enabled: true
+app:
+  security:
+    jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+    issuer: ${JWT_ISSUER:http://localhost:8081}
+    audience: flashsale-api
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

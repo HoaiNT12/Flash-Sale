@@ -1,0 +1,50 @@
+[
+  {
+    "service": "auth-service",
+    "image": "flashsale-batchtest-auth-service:local",
+    "containerId": "13ab15f90267",
+    "state": "running",
+    "health": "healthy",
+    "ports": "127.0.0.1:18081->8081/tcp"
+  },
+  {
+    "service": "inventory-service",
+    "image": "flashsale-batchtest-inventory-service:local",
+    "containerId": "213286b841f3",
+    "state": "running",
+    "health": "healthy",
+    "ports": "127.0.0.1:18082->8082/tcp"
+  },
+  {
+    "service": "order-service",
+    "image": "flashsale-batchtest-order-service:local",
+    "containerId": "b08b758861c1",
+    "state": "running",
+    "health": "healthy",
+    "ports": "127.0.0.1:18084->8084/tcp"
+  },
+  {
+    "service": "payment-service",
+    "image": "flashsale-batchtest-payment-service:local",
+    "containerId": "6f86f10262d9",
+    "state": "running",
+    "health": "healthy",
+    "ports": "127.0.0.1:18083->8083/tcp"
+  },
+  {
+    "service": "postgres-primary",
+    "image": "postgres:17",
+    "containerId": "8104449a7a1e",
+    "state": "running",
+    "health": "healthy",
+    "ports": "127.0.0.1:15432->5432/tcp"
+  },
+  {
+    "service": "postgres-replica",
+    "image": "postgres:17",
+    "containerId": "95ff0a25ac38",
+    "state": "running",
+    "health": "healthy",
+    "ports": "127.0.0.1:15433->5432/tcp"
+  }
+]

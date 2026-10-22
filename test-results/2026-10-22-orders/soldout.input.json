@@ -1,0 +1,18 @@
+{
+  "baseUrls": {
+    "auth": "http://localhost:18081",
+    "inventory": "http://localhost:18082",
+    "payment": "http://localhost:18083",
+    "order": "http://localhost:18084"
+  },
+  "customer": {
+    "username": "alice",
+    "password": "Demo@123"
+  },
+  "productId": "33333333-3333-3333-3333-333333333333",
+  "quantity": 1,
+  "uniqueOrders": 10,
+  "duplicateRequests": 10,
+  "concurrency": 16,
+  "timeoutSeconds": 240
+}

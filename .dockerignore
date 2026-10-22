@@ -1,0 +1,10 @@
+**/target/
+.git/
+.idea/
+.vscode/
+.local/
+.env
+**/*.log
+docs/
+test-results/
+artifacts/

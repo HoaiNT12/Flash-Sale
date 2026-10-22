@@ -1,0 +1,18 @@
+{
+  "baseUrls": {
+    "auth": "http://127.0.0.1:18081",
+    "inventory": "http://127.0.0.1:18082",
+    "payment": "http://127.0.0.1:18083",
+    "order": "http://127.0.0.1:18084"
+  },
+  "customer": {
+    "username": "alice",
+    "password": "Demo@123"
+  },
+  "productId": "11111111-1111-1111-1111-111111111111",
+  "quantity": 1,
+  "uniqueOrders": 200,
+  "duplicateRequests": 100,
+  "concurrency": 32,
+  "timeoutSeconds": 240
+}

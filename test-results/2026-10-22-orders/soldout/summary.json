@@ -1,0 +1,71 @@
+{
+  "runId": "aa6c2a63ae594036a6dbc89b71270795",
+  "status": "PASS",
+  "outputDirectory": "C:\\Users\\Admin\\OneDrive\\Documents\\java\\FlashSale\\FlashSale\\test-results\\2026-10-22-orders\\soldout",
+  "customer": "alice",
+  "productId": "33333333-3333-3333-3333-333333333333",
+  "quantity": 1,
+  "plannedUniqueOrders": 10,
+  "plannedDuplicateRequests": 10,
+  "plannedBulkHttpRequests": 20,
+  "plannedHttpRequests": 21,
+  "conflictProbe": {
+    "idempotencyKey": "batch-aa6c2a63ae594036a6dbc89b71270795-1",
+    "expectedHttpStatus": 409,
+    "httpStatus": 409
+  },
+  "submissionDurationMs": 4355,
+  "completionDurationMs": 4830,
+  "consistencyScope": "HTTP-observed wallet/stock totals on an isolated stack; ledger/orphan checks require a separate primary DB audit",
+  "submissionAndCompletionDurationMs": 9185,
+  "observedConsistency": {
+    "walletBefore": 90100000.0,
+    "walletAfter": 90100000.0,
+    "expectedStockAfter": 0,
+    "stockAfter": 0,
+    "completedUnits": 0,
+    "completedOrderAmountVnd": 0.0,
+    "walletDebitedVnd": 0.0,
+    "stockBefore": 0
+  },
+  "duplicateIdMismatches": [],
+  "assertions": {
+    "allBulkRequestsRecorded": true,
+    "noPermanentBulkHttpErrors": true,
+    "everyLogicalOrderAcknowledged": true,
+    "noDuplicateOrderIds": true,
+    "conflictReturns409": true,
+    "allKnownOrdersTerminal": true,
+    "completedUnitsWithinBaselineStock": true,
+    "stockMatchesCompletedUnits": true,
+    "walletMatchesCompletedOrderAmounts": true
+  },
+  "actualBulkHttpRequests": 20,
+  "actualRecoveryHttpRequests": 0,
+  "actualConflictHttpRequests": 1,
+  "actualHttpRequests": 21,
+  "bulkHttpStatusCounts": {
+    "202": 20
+  },
+  "recoveryHttpStatusCounts": {},
+  "httpStatusCounts": {
+    "202": 20,
+    "409": 1
+  },
+  "requestLatencyMs": {
+    "p50": 2077.633,
+    "p95": 2126.359,
+    "p99": 2132.28
+  },
+  "distinctOrders": 10,
+  "completedOrders": 0,
+  "rejectedOrders": 10,
+  "pendingOrders": 0,
+  "rejectionReasons": {
+    "OUT_OF_STOCK": 10
+  },
+  "unacknowledgedLogicalKeys": [],
+  "totalDurationMs": 19962,
+  "finishedAtUtc": "2026-10-22T08:40:32.4366193Z",
+  "failureMessages": []
+}

@@ -1,0 +1,48 @@
+# Isolated batch-test stack. Requires Docker Compose >= 2.24.4 for !override.
+# Always choose a NEW project name with -p so its network and named volumes are fresh:
+# docker compose -p <unique-test-project> -f docker-compose.yml -f docker-compose.batch-test.yml build
+# docker compose -p <unique-test-project> -f docker-compose.yml -f docker-compose.batch-test.yml up -d --wait --wait-timeout 240
+# The inherited build definitions reuse Docker build layers; the test image names
+# below keep builds separate from the ordinary flashsale-* service images.
+# Host URLs: auth http://localhost:18081, inventory :18082, payment :18083, orders :18084.
+# PostgreSQL primary uses localhost:15432 and replica uses localhost:15433.
+# Container ports, internal service URLs and JWKS URLs retain their base values.
+# Stop with the same -p and -f arguments plus stop; preserve volumes for SQL auditing.
+services:
+  postgres-primary:
+    ports: !override
+      - "127.0.0.1:15432:5432"
+
+  postgres-replica:
+    ports: !override
+      - "127.0.0.1:15433:5432"
+
+  auth-service:
+    image: flashsale-batchtest-auth-service:local
+    ports: !override
+      - "127.0.0.1:18081:8081"
+    environment:
+      APP_SECURITY_ISSUER: http://localhost:18081
+
+  inventory-service:
+    image: flashsale-batchtest-inventory-service:local
+    ports: !override
+      - "127.0.0.1:18082:8082"
+    environment:
+      APP_SECURITY_ISSUER: http://localhost:18081
+      DEMO_ENABLED: "false"
+
+  payment-service:
+    image: flashsale-batchtest-payment-service:local
+    ports: !override
+      - "127.0.0.1:18083:8083"
+    environment:
+      APP_SECURITY_ISSUER: http://localhost:18081
+      DEMO_ENABLED: "false"
+
+  order-service:
+    image: flashsale-batchtest-order-service:local
+    ports: !override
+      - "127.0.0.1:18084:8084"
+    environment:
+      APP_SECURITY_ISSUER: http://localhost:18081
