@@ -1,0 +1,162 @@
+{
+  "description": "Same key/body keeps one ID; changed quantity conflicts",
+  "requests": [
+    {
+      "requestIndex": 201,
+      "logicalOrderIndex": 1,
+      "phase": "bulk",
+      "method": "POST",
+      "url": "http://127.0.0.1:18084/api/orders",
+      "headers": {
+        "Content-Type": "application/json",
+        "Idempotency-Key": "batch-983c2c23c6e743af8b91a07dff7db965-1"
+      },
+      "idempotencyKey": "batch-983c2c23c6e743af8b91a07dff7db965-1",
+      "body": {
+        "quantity": 1,
+        "productId": "11111111-1111-1111-1111-111111111111"
+      },
+      "bodyText": "{\"quantity\":1,\"productId\":\"11111111-1111-1111-1111-111111111111\"}",
+      "recoveryAttempt": 0,
+      "sentAtUtc": "2026-10-22T08:45:33.921107Z",
+      "httpTimeoutSeconds": 10
+    },
+    {
+      "requestIndex": 1,
+      "logicalOrderIndex": 1,
+      "phase": "bulk",
+      "method": "POST",
+      "url": "http://127.0.0.1:18084/api/orders",
+      "headers": {
+        "Content-Type": "application/json",
+        "Idempotency-Key": "batch-983c2c23c6e743af8b91a07dff7db965-1"
+      },
+      "idempotencyKey": "batch-983c2c23c6e743af8b91a07dff7db965-1",
+      "body": {
+        "quantity": 1,
+        "productId": "11111111-1111-1111-1111-111111111111"
+      },
+      "bodyText": "{\"quantity\":1,\"productId\":\"11111111-1111-1111-1111-111111111111\"}",
+      "recoveryAttempt": 0,
+      "sentAtUtc": "2026-10-22T08:45:39.5082703Z",
+      "httpTimeoutSeconds": 10
+    },
+    {
+      "requestIndex": 303,
+      "logicalOrderIndex": 1,
+      "phase": "conflict",
+      "method": "POST",
+      "url": "http://127.0.0.1:18084/api/orders",
+      "headers": {
+        "Content-Type": "application/json",
+        "Idempotency-Key": "batch-983c2c23c6e743af8b91a07dff7db965-1"
+      },
+      "idempotencyKey": "batch-983c2c23c6e743af8b91a07dff7db965-1",
+      "body": {
+        "quantity": 2,
+        "productId": "11111111-1111-1111-1111-111111111111"
+      },
+      "bodyText": "{\"quantity\":2,\"productId\":\"11111111-1111-1111-1111-111111111111\"}",
+      "recoveryAttempt": 0,
+      "sentAtUtc": "2026-10-22T08:45:45.3921378Z",
+      "httpTimeoutSeconds": 10
+    }
+  ],
+  "responses": [
+    {
+      "requestIndex": 201,
+      "logicalOrderIndex": 1,
+      "phase": "bulk",
+      "idempotencyKey": "batch-983c2c23c6e743af8b91a07dff7db965-1",
+      "recoveryAttempt": 0,
+      "startedAtUtc": "2026-10-22T08:45:33.921107Z",
+      "finishedAtUtc": "2026-10-22T08:45:35.5406568Z",
+      "httpStatus": 503,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "code": "TEMPORARILY_UNAVAILABLE",
+        "message": "Retry later using the same idempotency key",
+        "timestamp": "2026-10-22T08:45:35.494013782Z"
+      },
+      "bodyText": "{\"code\":\"TEMPORARILY_UNAVAILABLE\",\"message\":\"Retry later using the same idempotency key\",\"timestamp\":\"2026-10-22T08:45:35.494013782Z\"}",
+      "latencyMs": 1595.656,
+      "transportError": null,
+      "outcomeUnknown": true
+    },
+    {
+      "requestIndex": 1,
+      "logicalOrderIndex": 1,
+      "phase": "bulk",
+      "idempotencyKey": "batch-983c2c23c6e743af8b91a07dff7db965-1",
+      "recoveryAttempt": 0,
+      "startedAtUtc": "2026-10-22T08:45:39.5082703Z",
+      "finishedAtUtc": "2026-10-22T08:45:40.1366127Z",
+      "httpStatus": 202,
+      "headers": {
+        "Content-Type": "application/json",
+        "Location": "/api/orders/6dd8b88a-6220-4be2-a582-ad54e6f0ebae",
+        "Retry-After": "1"
+      },
+      "body": {
+        "id": "6dd8b88a-6220-4be2-a582-ad54e6f0ebae",
+        "customerId": "alice",
+        "productId": "11111111-1111-1111-1111-111111111111",
+        "quantity": 1,
+        "unitPrice": null,
+        "amount": null,
+        "currency": null,
+        "status": "ACCEPTED",
+        "step": "RESERVE",
+        "attempts": 0,
+        "deadline": "2026-10-22T08:47:39.665486Z",
+        "failureCode": null,
+        "createdAt": "2026-10-22T08:45:39.665486Z",
+        "updatedAt": "2026-10-22T08:45:39.665486Z"
+      },
+      "bodyText": "{\"id\":\"6dd8b88a-6220-4be2-a582-ad54e6f0ebae\",\"customerId\":\"alice\",\"productId\":\"11111111-1111-1111-1111-111111111111\",\"quantity\":1,\"unitPrice\":null,\"amount\":null,\"currency\":null,\"status\":\"ACCEPTED\",\"step\":\"RESERVE\",\"attempts\":0,\"deadline\":\"2026-10-22T08:47:39.665486Z\",\"failureCode\":null,\"createdAt\":\"2026-10-22T08:45:39.665486Z\",\"updatedAt\":\"2026-10-22T08:45:39.665486Z\"}",
+      "latencyMs": 628.11,
+      "transportError": null,
+      "outcomeUnknown": false
+    },
+    {
+      "requestIndex": 303,
+      "logicalOrderIndex": 1,
+      "phase": "conflict",
+      "idempotencyKey": "batch-983c2c23c6e743af8b91a07dff7db965-1",
+      "recoveryAttempt": 0,
+      "startedAtUtc": "2026-10-22T08:45:45.3921378Z",
+      "finishedAtUtc": "2026-10-22T08:45:45.4229231Z",
+      "httpStatus": 409,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "code": "IDEMPOTENCY_CONFLICT",
+        "message": "Key already used for a different checkout",
+        "timestamp": "2026-10-22T08:45:45.413818579Z"
+      },
+      "bodyText": "{\"code\":\"IDEMPOTENCY_CONFLICT\",\"message\":\"Key already used for a different checkout\",\"timestamp\":\"2026-10-22T08:45:45.413818579Z\"}",
+      "latencyMs": 30.451,
+      "transportError": null,
+      "outcomeUnknown": false
+    }
+  ],
+  "finalOrder": {
+    "id": "6dd8b88a-6220-4be2-a582-ad54e6f0ebae",
+    "customerId": "alice",
+    "productId": "11111111-1111-1111-1111-111111111111",
+    "quantity": 1,
+    "unitPrice": null,
+    "amount": null,
+    "currency": null,
+    "status": "REJECTED",
+    "step": "FINISHED",
+    "attempts": 0,
+    "deadline": "2026-10-22T08:47:39.665486Z",
+    "failureCode": "OUT_OF_STOCK",
+    "createdAt": "2026-10-22T08:45:39.665486Z",
+    "updatedAt": "2026-10-22T08:46:02.056162Z"
+  }
+}

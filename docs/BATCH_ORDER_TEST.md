@@ -39,6 +39,45 @@ Content-Type: application/json
 
 Sau 300 POST, script gửi thêm **1 probe**: dùng key đã nhận nhưng đổi quantity thành 2, kỳ vọng HTTP 409 IDEMPOTENCY_CONFLICT. Vì vậy lượt chính có **301 checkout POST**, không tính login và GET polling. Nếu timeout/503/429, các recovery POST giữ nguyên key/body và được đếm riêng; không tạo ý định mua mới bằng key khác.
 
+## Gọi API xem tồn kho và số dư
+
+Các URL dưới đây dùng **stack batch** trong input mẫu. Stack chạy bằng Compose mặc định dùng cổng 8081/8082/8083 thay cho 18081/18082/18083; cần gọi đúng stack để xem đúng dữ liệu.
+
+| Mục đích | Method | URL của stack batch |
+|---|---|---|
+| Đăng nhập lấy access token | POST | `http://127.0.0.1:18081/api/auth/login` |
+| Xem một sản phẩm và tồn kho | GET | `http://127.0.0.1:18082/api/products/{productId}` |
+| Xem tất cả sản phẩm | GET | `http://127.0.0.1:18082/api/products` |
+| Xem số dư tài khoản đang đăng nhập | GET | `http://127.0.0.1:18083/api/wallets/me` |
+
+Chạy PowerShell 5.1 từ thư mục gốc project (nơi có `docker-compose.yml`). Đoạn này lấy URL, sản phẩm và tài khoản từ chính input của batch:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$inputConfig = Get-Content -LiteralPath '.\examples\batch-orders.input.json' -Raw -Encoding UTF8 | ConvertFrom-Json
+$loginBody = @{ username = $inputConfig.customer.username; password = $inputConfig.customer.password } | ConvertTo-Json -Compress
+$login = Invoke-RestMethod -Method Post -Uri "$($inputConfig.baseUrls.auth)/api/auth/login" -ContentType 'application/json' -Body $loginBody -TimeoutSec 10
+$headers = @{ Authorization = "Bearer $($login.accessToken)" }
+$stock = Invoke-RestMethod -Method Get -Uri "$($inputConfig.baseUrls.inventory)/api/products/$($inputConfig.productId)" -Headers $headers -TimeoutSec 10
+$wallet = Invoke-RestMethod -Method Get -Uri "$($inputConfig.baseUrls.payment)/api/wallets/me" -Headers $headers -TimeoutSec 10
+$stock | Select-Object id, name, availableStock, unitPrice, currency | ConvertTo-Json
+$wallet | ConvertTo-Json
+```
+
+`availableStock` là số lượng còn có thể đặt; `balance` là số dư ví. `/api/wallets/me` lấy tài khoản từ token: đăng nhập Alice để xem ví Alice, đăng nhập Bob để xem ví Bob. Để dùng input riêng, đổi đường dẫn ở dòng đọc `$inputConfig`. Khi token hết hạn (HTTP 401), đăng nhập lại để lấy token mới.
+
+Sau khi đã đăng nhập, có thể chạy riêng từng dòng sau bất kỳ lúc nào để lấy dữ liệu mới:
+
+```powershell
+Invoke-RestMethod -Method Get -Uri "$($inputConfig.baseUrls.inventory)/api/products/$($inputConfig.productId)" -Headers $headers -TimeoutSec 10 | ConvertTo-Json
+Invoke-RestMethod -Method Get -Uri "$($inputConfig.baseUrls.payment)/api/wallets/me" -Headers $headers -TimeoutSec 10 | ConvertTo-Json
+Invoke-RestMethod -Method Get -Uri "$($inputConfig.baseUrls.inventory)/api/products" -Headers $headers -TimeoutSec 10 | ConvertTo-Json -Depth 5
+```
+
+Với input mẫu và database seed mới, trước batch `availableStock = 100`, ví Alice `balance = 100000000`. Sau 100 đơn thành công, 100 đơn hết hàng và các Saga đã kết thúc, kỳ vọng `availableStock = 0`, `balance = 90100000`, `currency = "VND"`. Nếu database đã chạy thêm test, kết quả phụ thuộc dữ liệu hiện tại.
+
+Catalog có thể đọc từ replica nên tồn kho có thể cập nhật trễ trong lúc batch đang chạy. Chờ đơn kết thúc rồi gọi lại; dùng audit primary và verifier ở phần dưới để đối soát chính xác. Các lệnh GET này chỉ đọc dữ liệu. Batch cũng lưu các lần đọc trước/sau trong `main/reads.jsonl`.
+
 ## Output
 
 Mỗi lượt chạy tạo một folder mới. Không ghi password hoặc bearer token vào output.
@@ -53,15 +92,17 @@ Mỗi lượt chạy tạo một folder mới. Không ghi password hoặc bearer
 | `orders.final.json` | Các đơn phân biệt và trạng thái quan sát cuối |
 | `summary.json` | Tổng HTTP, số đơn, lỗi nghiệp vụ, timing và kết quả assertion |
 
-Kỳ vọng với dữ liệu mới: 300 POST được nhận (202), 200 đơn phân biệt, 100 COMPLETED, 100 REJECTED/OUT_OF_STOCK; tồn SKU đầu 100 → 0; ví alice 100.000.000 → 90.100.000 VND; probe 409. `202` chỉ xác nhận đã nhận đơn, không phải thanh toán thành công. Kết quả cuối phải lấy từ GET và audit database.
+Kỳ vọng với dữ liệu mới: 200 ý định mua được xác định kết quả qua HTTP 202, 200 đơn phân biệt, 100 COMPLETED, 100 REJECTED/OUT_OF_STOCK; tồn SKU đầu 100 → 0; ví alice 100.000.000 → 90.100.000 VND; probe 409. Một số POST đầu có thể trả 503/429 và cần recovery; output giữ nguyên các lỗi đó. `202` chỉ xác nhận đã nhận đơn, không phải thanh toán thành công. Kết quả cuối phải lấy từ GET và audit database.
 
 `requestLatencyMs.p50/p95/p99` đo từng POST từ client. `submissionDurationMs` đo đợt gửi, `completionDurationMs` đo thời gian chờ thêm sau đợt gửi (gồm recovery/probe), `submissionAndCompletionDurationMs` là tổng hai giai đoạn. `totalDurationMs` còn bao gồm đăng nhập, snapshot và đối chiếu replica. Không nhầm các số này với thời gian xử lý một đơn hoặc SLA của server.
 
 ## Chạy lại từ đầu
 
-Cần Docker Desktop Linux engine và **PowerShell 7.3+**. Docker Compose 2.24.4+ hỗ trợ `!override` để thay cổng mà không mở thêm cổng gốc. [Tài liệu Compose merge](https://docs.docker.com/reference/compose-file/merge/).
+Cần Docker Desktop Linux engine và **Windows PowerShell 5.1 trở lên**. Các script đã dùng runspace pool để chạy song song, không cần `ForEach-Object -Parallel`, module bổ sung hoặc PowerShell 7. Nếu chưa chạy project lần nào, đọc [hướng dẫn PowerShell 5.1 từ đầu](RUN_POWERSHELL_5_1.md) trước. Docker Compose 2.24.4+ hỗ trợ `!override` để thay cổng mà không mở thêm cổng gốc. [Tài liệu Compose merge](https://docs.docker.com/reference/compose-file/merge/).
 
 ```powershell
+$PSVersionTable.PSVersion
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force
 Set-Location 'C:\Users\Admin\OneDrive\Documents\java\FlashSale\FlashSale'
 
 # Mỗi lần test chọn project mới để có database/volume seed mới.
@@ -71,6 +112,7 @@ $compose = @('compose','--env-file','.env.example','-p',$project,
              '-f','docker-compose.yml','-f','docker-compose.batch-test.yml')
 
 docker @compose up -d --build --wait --wait-timeout 240
+if ($LASTEXITCODE -ne 0) { throw 'Stack batch chưa healthy. Dừng ở đây và xem docker @compose logs --tail=100.' }
 docker @compose ps
 
 # Snapshot primary trước khi gửi API.
@@ -85,8 +127,8 @@ docker @compose ps
 # Đối chiếu HTTP, order, reservation, payment, ledger, wallet và replica.
 .\scripts\verify-batch.ps1 -AuditDirectory "$out/audit" -RunDirectories @("$out/main") -OutputFile "$out/assertions.json"
 
-Get-Content "$out/main/summary.json"
-Get-Content "$out/assertions.json"
+Get-Content -LiteralPath "$out/main/summary.json" -Encoding UTF8
+Get-Content -LiteralPath "$out/assertions.json" -Encoding UTF8
 ```
 
 Nếu cổng 18081–18084 hoặc 15432–15433 đang có stack test khác chiếm, dừng đúng project cũ trước; đổi tên project chỉ tách network/volume, không tự tách published ports. Dùng cùng biến `$compose` để xem logs và dừng stack vừa tạo:
@@ -96,14 +138,26 @@ docker @compose logs --tail=100
 docker @compose stop
 ```
 
+Các biến `$project`, `$out` và `$compose` thuộc phiên hiện tại. Giữ terminal này đến khi audit và stop xong; nếu mở terminal mới, gán lại đúng project name và đường dẫn output cũ trước khi chạy tiếp. PowerShell 5.1 không tự ném lỗi khi Docker trả exit code khác 0, nên cần giữ bước kiểm tra `$LASTEXITCODE` sau startup.
+
 `stop` giữ dữ liệu để audit. Không dùng lại project đã bán hết hàng rồi kỳ vọng lại có 100 đơn thành công. Không cần xóa volume để tạo dữ liệu mới: chọn project name mới. `OutputDirectory` của mỗi lượt API phải trống để không ghi đè bằng chứng cũ.
+
+## Verifier báo thiếu input.manifest.json
+
+Mở `failedChecks` trong `assertions.json` để xem nguyên nhân. Nếu báo thiếu `main/input.manifest.json`, verifier chưa đủ bằng chứng HTTP để kết luận toàn bộ lượt test; đây không phải lỗi từ bước kiểm tra `$LASTEXITCODE` sau Docker startup.
+
+Bản script cũ dùng `[IO.Path]::GetFullPath` nên đường dẫn tương đối có thể được tính từ thư mục làm việc của tiến trình .NET, khác với `Get-Location` của PowerShell. Ví dụ, đã đứng trong project nhưng output lại nằm ở `C:\Users\Admin\test-results\<project>\main`. Bản hiện tại giải quyết đường dẫn theo vị trí PowerShell, giống audit và verifier.
+
+Để cứu lượt cũ, tìm đúng thư mục output, đối chiếu `runId` của manifest với phần `batch-<runId>-...` trong `audit/final.orders.json`, rồi truyền đường dẫn tuyệt đối đó vào `-RunDirectories`. Giữ baseline và các file HTTP gốc; ghi kết quả mới vào `assertions.recovered.json`. Có thể sao chép nguyên bộ output về `main` nếu thư mục đích chưa tồn tại. `outputDirectory` trong summary gốc vẫn ghi vị trí ban đầu và không cần chỉnh sửa.
+
+Không gửi lại batch hoặc chụp lại baseline trên database đã test chỉ để sửa lỗi thiếu file: các đơn đã được xử lý và hàng có thể đã hết.
 
 ## Chạy thêm thiếu tiền và hàng đã hết
 
 Sau lượt chính, SKU thứ hai vẫn còn 50 hàng và poor có số dư 0. Tạo input riêng từ cấu hình mẫu:
 
 ```powershell
-$poor = Get-Content examples/batch-orders.input.json -Raw | ConvertFrom-Json
+$poor = Get-Content -LiteralPath examples/batch-orders.input.json -Raw -Encoding UTF8 | ConvertFrom-Json
 $poor.customer.username = 'poor'
 $poor.productId = '22222222-2222-2222-2222-222222222222'
 $poor.uniqueOrders = 10
@@ -112,7 +166,7 @@ $poor.concurrency = 16
 $poor | ConvertTo-Json -Depth 8 | Set-Content "$out/poor.input.json" -Encoding utf8
 .\scripts\batch-orders.ps1 -InputFile "$out/poor.input.json" -OutputDirectory "$out/poor"
 
-$soldout = Get-Content examples/batch-orders.input.json -Raw | ConvertFrom-Json
+$soldout = Get-Content -LiteralPath examples/batch-orders.input.json -Raw -Encoding UTF8 | ConvertFrom-Json
 $soldout.productId = '33333333-3333-3333-3333-333333333333'
 $soldout.uniqueOrders = 10
 $soldout.duplicateRequests = 10

@@ -1,6 +1,9 @@
-# PowerShell 7+: run on an idle isolated stack, with demo faults RESET.
+#requires -Version 5.1
+# Run on an idle isolated stack, with demo faults RESET.
 param([int]$Requests = 200, [int]$Concurrency = 32, [string]$Password = 'Demo@123', [int]$TimeoutSeconds = 240)
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'powershell-compat.ps1')
+$compatPath = Join-Path $PSScriptRoot 'powershell-compat.ps1'
 $PSDefaultParameterValues = @{'Invoke-RestMethod:TimeoutSec' = 10}
 if ($Requests -lt 1 -or $Concurrency -lt 1 -or $Concurrency -gt 128) { throw 'Requests > 0; Concurrency must be 1..128' }
 $login = Invoke-RestMethod -Method Post -Uri 'http://localhost:8081/api/auth/login' -ContentType 'application/json' -Body (@{username='alice';password=$Password} | ConvertTo-Json)
@@ -9,16 +12,20 @@ $product = '11111111-1111-1111-1111-111111111111'; $run = [guid]::NewGuid().ToSt
 $baseline = Invoke-RestMethod -Uri "http://localhost:8082/api/products/$product" -Headers $headers
 $walletBefore = Invoke-RestMethod -Uri 'http://localhost:8083/api/wallets/me' -Headers $headers
 $timer = [Diagnostics.Stopwatch]::StartNew()
-$results = 1..$Requests | ForEach-Object -ThrottleLimit $Concurrency -Parallel {
-    $headers = @{Authorization="Bearer $using:token";'Idempotency-Key'="load-$using:run-$_"}
+$submit = {
+    param($Index, $AccessToken, $RunId, $ProductId, $CompatPath)
+    . $CompatPath
+    $headers = @{Authorization="Bearer $AccessToken";'Idempotency-Key'="load-$RunId-$Index"}
     try {
-        $order = Invoke-RestMethod -TimeoutSec 10 -Method Post -Uri 'http://localhost:8084/api/orders' -Headers $headers -ContentType 'application/json' -Body (@{productId=$using:product;quantity=1} | ConvertTo-Json)
-        [pscustomobject]@{id=$order.id;http=202;error=$null}
+        $response = Invoke-CompatWebRequest -TimeoutSec 10 -Method Post -Uri 'http://localhost:8084/api/orders' -Headers $headers -ContentType 'application/json' -Body (@{productId=$ProductId;quantity=1} | ConvertTo-Json)
+        $orderId = $null
+        if ($response.StatusCode -eq 202) { $orderId = (ConvertFrom-CompatJson -InputObject $response.Content).id }
+        [pscustomobject]@{id=$orderId;http=$response.StatusCode;error=$(if ($response.StatusCode -ge 400) { $response.Content } else { $null })}
     } catch {
-        $status = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }
-        [pscustomobject]@{id=$null;http=$status;error=$_.Exception.Message}
+        [pscustomobject]@{id=$null;http=0;error=$_.Exception.Message}
     }
 }
+$results = @(Invoke-ParallelWork -InputObject @(1..$Requests) -ScriptBlock $submit -ArgumentList @($token, $run, $product, $compatPath) -ThrottleLimit $Concurrency)
 $timer.Stop(); $admissionMs = $timer.ElapsedMilliseconds
 $pending = @{}; $finished = @{}
 foreach ($result in $results) { if ($result.id) { $pending[$result.id] = $true } }

@@ -1,3 +1,4 @@
+#requires -Version 5.1
 param([string]$Password = 'Demo@123', [int]$TimeoutSeconds = 180)
 $ErrorActionPreference = 'Stop'
 $PSDefaultParameterValues = @{'Invoke-RestMethod:TimeoutSec' = 10}

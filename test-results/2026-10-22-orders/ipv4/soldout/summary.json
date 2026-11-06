@@ -1,0 +1,71 @@
+{
+  "runId": "211db3b292b043a6999ca369129abae2",
+  "status": "PASS",
+  "outputDirectory": "C:\\Users\\Admin\\OneDrive\\Documents\\java\\FlashSale\\FlashSale\\test-results\\2026-10-22-orders\\ipv4\\soldout",
+  "customer": "alice",
+  "productId": "33333333-3333-3333-3333-333333333333",
+  "quantity": 1,
+  "plannedUniqueOrders": 10,
+  "plannedDuplicateRequests": 10,
+  "plannedBulkHttpRequests": 20,
+  "plannedHttpRequests": 21,
+  "conflictProbe": {
+    "httpStatus": 409,
+    "expectedHttpStatus": 409,
+    "idempotencyKey": "batch-211db3b292b043a6999ca369129abae2-1"
+  },
+  "submissionDurationMs": 944,
+  "completionDurationMs": 722,
+  "consistencyScope": "HTTP-observed wallet/stock totals on an isolated stack; ledger/orphan checks require a separate primary DB audit",
+  "submissionAndCompletionDurationMs": 1666,
+  "observedConsistency": {
+    "completedOrderAmountVnd": 0.0,
+    "stockAfter": 0,
+    "walletBefore": 90100000.0,
+    "completedUnits": 0,
+    "walletAfter": 90100000.0,
+    "expectedStockAfter": 0,
+    "stockBefore": 0,
+    "walletDebitedVnd": 0.0
+  },
+  "duplicateIdMismatches": [],
+  "assertions": {
+    "allBulkRequestsRecorded": true,
+    "noPermanentBulkHttpErrors": true,
+    "everyLogicalOrderAcknowledged": true,
+    "noDuplicateOrderIds": true,
+    "conflictReturns409": true,
+    "allKnownOrdersTerminal": true,
+    "completedUnitsWithinBaselineStock": true,
+    "stockMatchesCompletedUnits": true,
+    "walletMatchesCompletedOrderAmounts": true
+  },
+  "actualBulkHttpRequests": 20,
+  "actualRecoveryHttpRequests": 0,
+  "actualConflictHttpRequests": 1,
+  "actualHttpRequests": 21,
+  "bulkHttpStatusCounts": {
+    "202": 20
+  },
+  "recoveryHttpStatusCounts": {},
+  "httpStatusCounts": {
+    "202": 20,
+    "409": 1
+  },
+  "requestLatencyMs": {
+    "p50": 91.848,
+    "p95": 143.714,
+    "p99": 158.282
+  },
+  "distinctOrders": 10,
+  "completedOrders": 0,
+  "rejectedOrders": 10,
+  "pendingOrders": 0,
+  "rejectionReasons": {
+    "OUT_OF_STOCK": 10
+  },
+  "unacknowledgedLogicalKeys": [],
+  "totalDurationMs": 2197,
+  "finishedAtUtc": "2026-10-22T08:47:44.1600552Z",
+  "failureMessages": []
+}

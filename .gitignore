@@ -4,6 +4,7 @@ HELP.md
 .reports/
 *.log
 **/target/
+/presentation/.build/
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -36,3 +37,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Keep the oversized demo recording local.
+/presentation/output/demo.mp4

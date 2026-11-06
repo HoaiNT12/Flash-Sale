@@ -1,0 +1,65 @@
+{
+    "runId":  "65ef5598cebd42a78bf01fed07979735",
+    "createdAtUtc":  "2026-11-03T09:06:00.7188124Z",
+    "baseUrls":  {
+                     "auth":  "http://127.0.0.1:18081",
+                     "inventory":  "http://127.0.0.1:18082",
+                     "payment":  "http://127.0.0.1:18083",
+                     "order":  "http://127.0.0.1:18084"
+                 },
+    "customer":  {
+                     "username":  "poor"
+                 },
+    "productId":  "22222222-2222-2222-2222-222222222222",
+    "quantity":  1,
+    "uniqueOrders":  10,
+    "duplicateRequests":  10,
+    "concurrency":  16,
+    "timeoutSeconds":  240,
+    "plannedBulkHttpRequests":  20,
+    "plannedConflictProbes":  1,
+    "keyMapping":  [
+                       {
+                           "logicalOrderIndex":  1,
+                           "idempotencyKey":  "batch-65ef5598cebd42a78bf01fed07979735-1"
+                       },
+                       {
+                           "logicalOrderIndex":  2,
+                           "idempotencyKey":  "batch-65ef5598cebd42a78bf01fed07979735-2"
+                       },
+                       {
+                           "logicalOrderIndex":  3,
+                           "idempotencyKey":  "batch-65ef5598cebd42a78bf01fed07979735-3"
+                       },
+                       {
+                           "logicalOrderIndex":  4,
+                           "idempotencyKey":  "batch-65ef5598cebd42a78bf01fed07979735-4"
+                       },
+                       {
+                           "logicalOrderIndex":  5,
+                           "idempotencyKey":  "batch-65ef5598cebd42a78bf01fed07979735-5"
+                       },
+                       {
+                           "logicalOrderIndex":  6,
+                           "idempotencyKey":  "batch-65ef5598cebd42a78bf01fed07979735-6"
+                       },
+                       {
+                           "logicalOrderIndex":  7,
+                           "idempotencyKey":  "batch-65ef5598cebd42a78bf01fed07979735-7"
+                       },
+                       {
+                           "logicalOrderIndex":  8,
+                           "idempotencyKey":  "batch-65ef5598cebd42a78bf01fed07979735-8"
+                       },
+                       {
+                           "logicalOrderIndex":  9,
+                           "idempotencyKey":  "batch-65ef5598cebd42a78bf01fed07979735-9"
+                       },
+                       {
+                           "logicalOrderIndex":  10,
+                           "idempotencyKey":  "batch-65ef5598cebd42a78bf01fed07979735-10"
+                       }
+                   ],
+    "credentialHandling":  "Password and access token intentionally omitted",
+    "httpCountScope":  "Checkout POST requests only; authentication, baseline reads and GET polling are excluded"
+}

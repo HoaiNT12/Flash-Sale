@@ -19,19 +19,31 @@ Thanh toán sử dụng **ví mô phỏng có ledger PostgreSQL**, giúp kiểm 
 | Database có replica và dữ liệu mẫu | PostgreSQL 17 primary + physical streaming replica; 4 database/owner riêng, Flyway và seed |
 | Tái hiện quá tải | Demo override + fault injection được bảo vệ bằng scope admin, script quan sát OPEN và khôi phục |
 
-## Chạy nhanh trên Windows
+## Chạy nhanh trên Windows PowerShell 5.1
 
-Mở terminal tại thư mục chứa README này (`...\FlashSale\FlashSale`). Cần Docker Desktop với Linux engine đang chạy. Chạy toàn bộ bằng Docker không cần cài Maven hay JDK trên host; build/test trên host cần JDK 21.
+Xem [quy trình chạy từ đầu bằng PowerShell 5.1](docs/RUN_POWERSHELL_5_1.md) để kiểm tra Docker, build, gọi API, theo dõi đơn, kiểm tra replica và xử lý lỗi thường gặp.
+
+Mở **Windows PowerShell 5.1** tại thư mục chứa README này (`...\FlashSale\FlashSale`). Cần Docker Desktop với Linux engine đang chạy. Chạy toàn bộ bằng Docker không cần cài Maven hay JDK trên host; build/test Java trên host là bước tùy chọn và cần JDK 21.
 
 ```powershell
-Copy-Item .env.example .env
-.\mvnw.cmd -B -ntp verify
-docker compose up -d --build --wait --wait-timeout 240
+$PSVersionTable.PSVersion
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force
+
+if (-not (Test-Path -LiteralPath '.\.env')) {
+    Copy-Item -LiteralPath '.\.env.example' -Destination '.\.env'
+}
+
+docker compose build
+if ($LASTEXITCODE -ne 0) { throw 'Docker build thất bại.' }
+
+docker compose up -d --wait --wait-timeout 240
+if ($LASTEXITCODE -ne 0) { throw 'Có container chưa healthy. Xem docker compose logs --tail=100.' }
+
 docker compose ps
 .\scripts\smoke.ps1
 ```
 
-Linux/macOS dùng `bash mvnw -B -ntp verify`; các script `.ps1` cần PowerShell 7 (`pwsh`). Không cần cài Maven riêng. Lần đầu tải dependencies và Docker images sẽ lâu hơn. Giữ `.env` ngoài Git.
+Các script `.ps1` hỗ trợ Windows PowerShell **5.1 trở lên**, không cần cài module chạy song song. Trên Linux/macOS, dùng PowerShell 7 (`pwsh`) để chạy các script và `bash mvnw -B -ntp verify` nếu build trên host. Lần đầu tải dependencies và Docker images sẽ lâu hơn. Giữ `.env` ngoài Git. Docker build dùng `-DskipTests`; xem [TESTING.md](docs/TESTING.md) để chạy tests Java riêng.
 
 | Thành phần | Địa chỉ host | Database |
 |---|---|---|
@@ -89,10 +101,14 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build --
 
 Script overload bật lỗi 503 và độ trễ 1.200 ms ở inventory, tạo đơn, chờ quan sát circuit `OPEN`, reset fault trong `finally`, rồi chờ đơn hoàn thành hoặc được hoàn tác. Chạy lại có thể tiêu thụ hàng mẫu; [TESTING.md](docs/TESTING.md) mô tả test thiếu hàng, thiếu tiền, timeout, recovery, replica và kiểm tra SQL.
 
+Có thể kiểm tra riêng chu trình CLOSED/OPEN/HALF_OPEN/CLOSED bằng [JMeter và Test Plan mẫu](docs/JMETER_CIRCUIT_BREAKER.md). Hướng dẫn sử dụng PowerShell 5.1, JWT admin để đọc Actuator và fault injection có cleanup.
+
 ## Tài liệu và kiểm chứng
 
+- [RUN_POWERSHELL_5_1.md](docs/RUN_POWERSHELL_5_1.md): chạy từ đầu trên Windows PowerShell 5.1, từ Docker đến API và kiểm thử.
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md): bounded contexts, Clean Architecture, state machine và các invariant.
 - [API.md](docs/API.md): endpoint, request/response, scope và lỗi.
+- [JMETER_CIRCUIT_BREAKER.md](docs/JMETER_CIRCUIT_BREAKER.md): kiểm thử Circuit Breaker bằng JMeter, file JMX, CLI/GUI và tiêu chí phục hồi.
 - [TESTING.md](docs/TESTING.md): kiểm thử cạnh tranh, tải, fault injection, restart và dữ liệu.
 - [OPERATIONS.md](docs/OPERATIONS.md): primary/replica, synchronous replication, cấu hình và giới hạn.
 - [VALIDATION.md](docs/VALIDATION.md): kết quả kiểm chứng trong môi trường tạo project.

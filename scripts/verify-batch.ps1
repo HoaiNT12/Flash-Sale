@@ -1,4 +1,4 @@
-#requires -Version 7.3
+#requires -Version 5.1
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$AuditDirectory,
@@ -10,6 +10,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'powershell-compat.ps1')
 $auditRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($AuditDirectory)
 if ([string]::IsNullOrWhiteSpace($OutputFile)) { $OutputFile = Join-Path $auditRoot 'assertions.json' }
 $outputPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputFile)
@@ -29,13 +30,13 @@ function Read-Json([string]$Path) {
     # Preserve monetary JSON literals before ConvertFrom-Json can turn them into doubles.
     $moneyPattern = '("(?:amount|unit_price|unitPrice|balance|opening_balance_inferred|debited_total_global|refunded_total_global)"\s*:\s*)(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)'
     $json = [regex]::Replace($json, $moneyPattern, '$1"$2"')
-    return ConvertFrom-Json -InputObject $json -AsHashtable -Depth 100
+    return ConvertFrom-CompatJson -InputObject $json -AsHashtable
 }
 function Read-JsonLines([string]$Path) {
     foreach ($line in Get-Content -LiteralPath $Path -Encoding utf8) {
         if (-not [string]::IsNullOrWhiteSpace($line)) {
             $moneyPattern = '("(?:amount|unit_price|unitPrice|balance)"\s*:\s*)(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)'
-            ConvertFrom-Json -InputObject ([regex]::Replace($line, $moneyPattern, '$1"$2"')) -AsHashtable -Depth 100
+            ConvertFrom-CompatJson -InputObject ([regex]::Replace($line, $moneyPattern, '$1"$2"')) -AsHashtable
         }
     }
 }
@@ -128,6 +129,8 @@ try {
             @($responses | Where-Object { $_.phase -ceq 'bulk' }).Count -eq [int]$manifest.plannedBulkHttpRequests -and
             @(Rows $manifest.keyMapping).Count -eq [int]$manifest.uniqueOrders)
         $requestByIndex = Index-Rows $requests 'requestIndex' "run.$runName.request_index"
+        $null = Index-Rows $responses 'requestIndex' "run.$runName.response_index"
+        $null = Index-Rows $httpFinal 'id' "run.$runName.final_http_order_id"
         $accepted = [Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
         $responseErrors = [Collections.Generic.List[string]]::new()
         foreach ($mapping in @(Rows $manifest.keyMapping)) {
@@ -166,7 +169,9 @@ try {
             if (-not $ordersById.ContainsKey($id)) { $responseErrors.Add("Final HTTP order absent from database: $id"); continue }
             $db = $ordersById[$id]
             if ([string]$order.status -cne [string]$db.status -or [string]$order.step -cne [string]$db.step -or
-                -not (Money-Equal $order.amount $db.amount) -or [string]$order.customerId -cne [string]$db.customer_id) {
+                -not (Money-Equal $order.amount $db.amount) -or -not (Money-Equal $order.unitPrice $db.unit_price) -or
+                [string]$order.currency -cne [string]$db.currency -or [string]$order.productId -cne [string]$db.product_id -or
+                [int]$order.quantity -ne [int]$db.quantity -or [string]$order.customerId -cne [string]$db.customer_id) {
                 $responseErrors.Add("Final HTTP/database state mismatch: $id")
             }
         }
@@ -198,7 +203,7 @@ try {
     Add-Check 'ledger.only_debit_or_refund' (@($ledger | Where-Object { $_.event_type -cnotin @('DEBIT', 'REFUND') }).Count -eq 0)
     foreach ($order in $dbOrders) {
         $id = [string]$order.id; $errors = [Collections.Generic.List[string]]::new()
-        $events = if ($ledgerByOrder.ContainsKey($id)) { @($ledgerByOrder[$id].ToArray()) } else { @() }
+        $events = @(if ($ledgerByOrder.ContainsKey($id)) { $ledgerByOrder[$id].ToArray() })
         $debits = @($events | Where-Object { $_.event_type -ceq 'DEBIT' })
         $refunds = @($events | Where-Object { $_.event_type -ceq 'REFUND' })
         Require ($reservationById.ContainsKey($id)) 'Missing reservation' $errors
@@ -210,6 +215,7 @@ try {
                 Require ($debits.Count -eq 1 -and $refunds.Count -eq 0) 'Completed requires exactly1debit/0refund' $errors
                 Require ($null -ne $order.amount -and $null -ne $order.unit_price -and $null -ne $reservation.unit_price -and $null -ne $payment.amount) 'Completed amount/price missing' $errors
                 if ($null -ne $order.amount -and $null -ne $order.unit_price) {
+                    Require ((Money $order.unit_price) -gt 0 -and (Money $order.amount) -gt 0) 'Completed requires positive price/amount' $errors
                     Require ((Money $order.amount) -eq (Money $order.unit_price) * [decimal]$order.quantity) 'Order multiplication differs' $errors
                     Require ((Money-Equal $order.unit_price $reservation.unit_price) -and (Money-Equal $order.amount $payment.amount)) 'Order/reservation/payment money differs' $errors
                 }
@@ -226,7 +232,11 @@ try {
             if ($null -ne $payment.customer_id) {
                 Require ([string]$payment.customer_id -ceq [string]$order.customer_id -and [string]$payment.currency -ceq [string]$order.currency -and (Money-Equal $payment.amount $order.amount)) 'Stored payment payload differs' $errors
             }
+            if ($events.Count -gt 0) {
+                Require ($null -ne $payment.customer_id -and $null -ne $payment.amount -and $null -ne $payment.currency) 'Ledger events require a stored payment payload' $errors
+            }
             foreach ($entry in $events) {
+                Require ((Money $entry.amount) -gt 0) 'Ledger amount must be positive' $errors
                 Require ([string]$entry.customer_id -ceq [string]$order.customer_id -and [string]$entry.currency -ceq [string]$order.currency -and (Money-Equal $entry.amount $order.amount)) 'Ledger amount/customer/currency differs from order' $errors
             }
         }

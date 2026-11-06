@@ -1,3 +1,4 @@
+#requires -Version 5.1
 # Start stack with docker-compose.demo.yml first. Deliberately creates orders.
 param([string]$AdminPassword = 'Admin@123', [string]$CustomerPassword = 'Demo@123', [int]$Orders = 32)
 $ErrorActionPreference = 'Stop'

@@ -1,5 +1,7 @@
 # Database replica, cấu hình và vận hành
 
+Các lệnh PowerShell trong tài liệu hỗ trợ Windows PowerShell 5.1. Nếu chưa dựng môi trường, làm theo [quy trình chạy từ đầu](RUN_POWERSHELL_5_1.md) trước; các lệnh bên dưới chạy tại thư mục chứa `docker-compose.yml`.
+
 ## Vì sao PostgreSQL
 
 Tồn kho/ví cần cập nhật nguyên tử, row locks, unique constraints, transaction và số tiền NUMERIC chính xác. PostgreSQL đáp ứng các nhu cầu này và có streaming replication. Redis/cache không được dùng làm nguồn quyết định số dư hay tồn kho trong bản này, tránh thêm một nơi phải đồng bộ correctness.

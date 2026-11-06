@@ -1,5 +1,7 @@
 # Kiểm thử tính đúng đắn, quá tải và khôi phục
 
+Các script hỗ trợ **Windows PowerShell 5.1 trở lên**. Quy trình chuẩn bị Docker, chọn đúng thư mục và execution policy nằm trong [RUN_POWERSHELL_5_1.md](RUN_POWERSHELL_5_1.md). Trên Linux/macOS dùng PowerShell 7 (`pwsh`).
+
 ## Build và tests tự động
 
 ```powershell
@@ -23,13 +25,14 @@ Khởi động một stack phát triển riêng, không có buyer khác. Script 
 
 ```powershell
 docker compose up -d --build --wait --wait-timeout 240
+if ($LASTEXITCODE -ne 0) { throw 'Stack chưa healthy. Xem docker compose logs --tail=100.' }
 .\scripts\smoke.ps1
 .\scripts\load.ps1 -Requests 200 -Concurrency 32
 ```
 
 Smoke tạo một đơn alice thành công và retry cùng key, kiểm tra balance debit đúng amount, bob không đọc đơn alice, customer không được void payment, input sai trả 400, poor thiếu tiền được compensation. Cuối script chờ replica phản ánh tồn ban đầu trừ một để làm baseline ổn định cho load tiếp theo.
 
-Load gửi POST song song bằng PowerShell 7, mỗi ý định mua một key; poll toàn bộ đơn tới terminal, cộng amount COMPLETED bằng decimal, đối chiếu giảm ví và kiểm tra tổng số đơn thành công không vượt tồn baseline. Replica có tối đa 15 giây để bắt kịp stock sau khi tất cả đơn đã xong. Các lỗi admission không kỳ vọng làm test fail thay vì bị bỏ qua. Đây là phép kiểm tra dữ liệu và submission time; không phải báo cáo benchmark p95/p99 production.
+Load gửi POST song song bằng runspace pool tương thích PowerShell 5.1, mỗi ý định mua một key; poll toàn bộ đơn tới terminal, cộng amount COMPLETED bằng decimal, đối chiếu giảm ví và kiểm tra tổng số đơn thành công không vượt tồn baseline. Replica có tối đa 15 giây để bắt kịp stock sau khi tất cả đơn đã xong. Các lỗi admission không kỳ vọng làm test fail thay vì bị bỏ qua. Đây là phép kiểm tra dữ liệu và submission time; không phải báo cáo benchmark p95/p99 production.
 
 Sau smoke trên DB mới, SKU đầu còn 99 hàng. Với 200 buyer quantity=1 và ví đủ tiền, kỳ vọng 99 COMPLETED; các đơn còn lại REJECTED/OUT_OF_STOCK nếu toàn bộ được admission. Circuit không mở do OUT_OF_STOCK vì đó là lỗi nghiệp vụ. Chạy lại trên cùng volume dùng số tồn hiện tại, không mặc định seed lại 100.
 
@@ -69,6 +72,10 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8082/demo/faults -Headers $
 ```
 
 Fault state giữ trong RAM từng instance, không phải cấu hình cluster. Demo không bật mặc định. Nếu muốn thử payment unavailable lâu, bật faults ở port 8083, quan sát COMPENSATING; reset và đợi trạng thái cuối thay vì sửa thẳng orders.
+
+## Circuit Breaker bằng JMeter
+
+Xem [hướng dẫn JMeter](JMETER_CIRCUIT_BREAKER.md) và [Test Plan có sẵn](../tests/jmeter/circuit-breaker.jmx). Plan đăng nhập, tạo đơn, bật/tắt fault Inventory, lưu sự kiện chuyển trạng thái của breaker rồi chờ đơn kết thúc. HTTP 202 chỉ xác nhận admission, nên tiêu chí dựa vào Actuator và trạng thái Saga. Hướng dẫn có lệnh CLI tương thích Windows PowerShell 5.1 và cách đọc kết quả.
 
 ## Crash recovery
 

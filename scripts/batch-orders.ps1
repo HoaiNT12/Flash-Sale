@@ -1,4 +1,4 @@
-#requires -Version 7.0
+#requires -Version 5.1
 <#
 Run against an isolated, idle stack with demo faults reset. The default input sends
 200 unique checkout keys and 100 duplicate requests in a mixed concurrent batch,
@@ -18,13 +18,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+$compatPath = Join-Path $PSScriptRoot 'powershell-compat.ps1'
+. $compatPath
+$utf8NoBom = [Text.UTF8Encoding]::new($false)
 
 function Write-JsonFile([string]$Path, $Value) {
-    ConvertTo-Json -InputObject $Value -Depth 64 | Set-Content -LiteralPath $Path -Encoding utf8
+    $json = ConvertTo-Json -InputObject $Value -Depth 64
+    [IO.File]::WriteAllText($Path, $json + [Environment]::NewLine, $utf8NoBom)
 }
 
 function Add-JsonLine([string]$Path, $Value) {
-    ConvertTo-Json -InputObject $Value -Depth 64 -Compress | Add-Content -LiteralPath $Path -Encoding utf8
+    $json = ConvertTo-Json -InputObject $Value -Depth 64 -Compress
+    [IO.File]::AppendAllText($Path, $json + [Environment]::NewLine, $utf8NoBom)
 }
 
 function Config-Integer([System.Collections.IDictionary]$Config, [string]$Name, [int]$Default, [int]$Minimum, [int]$Maximum) {
@@ -57,17 +62,18 @@ $invokeHttp = {
         if ($Request.idempotencyKey) { $headers['Idempotency-Key'] = $Request.idempotencyKey }
         $parameters = @{
             Method = $Request.method; Uri = $Request.url; Headers = $headers
-            TimeoutSec = $HttpTimeoutSeconds; SkipHttpErrorCheck = $true; ErrorAction = 'Stop'
+            TimeoutSec = $HttpTimeoutSeconds
         }
         if ($Request.method -eq 'POST') { $parameters.ContentType = 'application/json'; $parameters.Body = $Request.bodyText }
-        $http = Invoke-WebRequest @parameters
+        $http = Invoke-CompatWebRequest @parameters
         $status = [int]$http.StatusCode
         $bodyText = [string]$http.Content
         if ($bodyText) {
-            try { $body = ConvertFrom-Json -InputObject $bodyText -AsHashtable -Depth 64 } catch { $body = $bodyText }
+            try { $body = ConvertFrom-CompatJson -InputObject $bodyText -AsHashtable } catch { $body = $bodyText }
         }
         foreach ($name in @('Location', 'Retry-After', 'Content-Type')) {
-            if ($http.Headers.ContainsKey($name)) { $safeResponseHeaders[$name] = [string]::Join(', ', $http.Headers[$name]) }
+            $headerValue = $http.Headers[$name]
+            if ($null -ne $headerValue) { $safeResponseHeaders[$name] = [string]::Join(', ', [string[]]@($headerValue)) }
         }
     } catch {
         # Exception type is enough to diagnose transport failures without logging headers.
@@ -77,7 +83,7 @@ $invokeHttp = {
     if ($Request.idempotencyKey) { $safeHeaders['Idempotency-Key'] = $Request.idempotencyKey }
     if ($Request.method -eq 'POST') { $safeHeaders['Content-Type'] = 'application/json' }
     $requestBody = $null
-    if ($Request.bodyText) { $requestBody = ConvertFrom-Json -InputObject $Request.bodyText -AsHashtable }
+    if ($Request.bodyText) { $requestBody = ConvertFrom-CompatJson -InputObject $Request.bodyText -AsHashtable }
     [pscustomobject]@{
         request = [ordered]@{
             requestIndex = $Request.requestIndex; logicalOrderIndex = $Request.logicalOrderIndex; phase = $Request.phase
@@ -96,6 +102,15 @@ $invokeHttp = {
     }
 }
 $invokeHttpText = $invokeHttp.ToString()
+$parallelHttp = {
+    param($RequestItem, [datetime]$Deadline, [string]$HttpScriptText, [string]$Token, [string]$CompatScript)
+    . $CompatScript
+    $remaining = [int][Math]::Floor(($Deadline - [DateTime]::UtcNow).TotalSeconds)
+    if ($remaining -ge 1) {
+        $send = [scriptblock]::Create($HttpScriptText)
+        & $send $RequestItem $Token ([Math]::Min(10, $remaining))
+    }
+}
 
 function Latency-Percentiles($Responses) {
     $values = @($Responses | ForEach-Object { [double]$_.latencyMs } | Sort-Object)
@@ -116,7 +131,7 @@ function Status-Counts($Responses) {
     return $counts
 }
 
-$config = Get-Content -LiteralPath $InputFile -Raw | ConvertFrom-Json -AsHashtable -Depth 32
+$config = ConvertFrom-CompatJson -InputObject (Get-Content -LiteralPath $InputFile -Raw) -AsHashtable
 $uniqueOrders = Config-Integer $config 'uniqueOrders' 200 1 10000
 $duplicateRequests = Config-Integer $config 'duplicateRequests' 100 0 10000
 $concurrency = Config-Integer $config 'concurrency' 32 1 128
@@ -136,7 +151,8 @@ $customer = [string]$config['customer']['username']
 if ([string]::IsNullOrWhiteSpace($customer)) { throw 'customer.username is required' }
 $password = if ($config['customer'].Contains('password')) { [string]$config['customer']['password'] } else { 'Demo@123' }
 $runId = [guid]::NewGuid().ToString('N')
-$OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
+# Resolve relative paths against the PowerShell location, not the process working directory.
+$OutputDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
 if ((Test-Path -LiteralPath $OutputDirectory) -and @(Get-ChildItem -LiteralPath $OutputDirectory -Force).Count -gt 0) {
     throw 'OutputDirectory must be empty; use a new directory to preserve earlier evidence'
 }
@@ -144,7 +160,7 @@ New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $paths = @{}
 foreach ($name in @('rawrequests', 'responses', 'polls', 'reads')) {
     $paths[$name] = Join-Path $OutputDirectory "$name.jsonl"
-    [IO.File]::WriteAllText($paths[$name], '')
+    [IO.File]::WriteAllText($paths[$name], '', $utf8NoBom)
 }
 $responses = [Collections.Generic.List[object]]::new()
 $failures = [Collections.Generic.List[string]]::new()
@@ -213,9 +229,9 @@ function Read-Snapshot([string]$Url, [string]$Phase) {
 
 try {
     # Login response contains a bearer token and must never be recorded or printed.
-    $login = Invoke-WebRequest -Method Post -Uri "$($baseUrls.auth)/api/auth/login" -ContentType 'application/json' -TimeoutSec 10 -SkipHttpErrorCheck -Body (@{ username = $customer; password = $password } | ConvertTo-Json -Compress)
+    $login = Invoke-CompatWebRequest -Method Post -Uri "$($baseUrls.auth)/api/auth/login" -ContentType 'application/json' -TimeoutSec 10 -Body (@{ username = $customer; password = $password } | ConvertTo-Json -Compress)
     if ([int]$login.StatusCode -ne 200) { throw "Authentication failed with HTTP $([int]$login.StatusCode)" }
-    $accessToken = [string](($login.Content | ConvertFrom-Json -AsHashtable)['accessToken'])
+    $accessToken = [string]((ConvertFrom-CompatJson -InputObject $login.Content -AsHashtable)['accessToken'])
     if (-not $accessToken) { throw 'Authentication returned no access token' }
     $login = $null; $password = $null; $config = $null
     $baselineProduct = Read-Snapshot "$($baseUrls.inventory)/api/products/$productId" 'product-before'
@@ -225,13 +241,8 @@ try {
     $submissionTimer = [Diagnostics.Stopwatch]::StartNew()
     # Shuffle unique and duplicate payloads together; duplicates may reach the API first.
     $mixedRequests = @($requests | Sort-Object { Get-Random })
-    $mixedRequests | ForEach-Object -ThrottleLimit $concurrency -Parallel {
-        $remaining = [int][Math]::Floor(($using:deadline - [DateTime]::UtcNow).TotalSeconds)
-        if ($remaining -ge 1) {
-            $send = [scriptblock]::Create($using:invokeHttpText)
-            & $send $_ $using:accessToken ([Math]::Min(10, $remaining))
-        }
-    } | ForEach-Object { Save-Submission $_ }
+    Invoke-ParallelWork -InputObject $mixedRequests -ScriptBlock $parallelHttp -ArgumentList @($deadline, $invokeHttpText, $accessToken, $compatPath) -ThrottleLimit $concurrency |
+        ForEach-Object { Save-Submission $_ }
     $submissionTimer.Stop()
     $summary.submissionDurationMs = $submissionTimer.ElapsedMilliseconds
     $completionTimer = [Diagnostics.Stopwatch]::StartNew()
@@ -276,13 +287,7 @@ try {
             $pollIndex++
             @{ requestIndex = $pollIndex; logicalOrderIndex = 0; phase = 'poll'; method = 'GET'; url = "$orderUrl/$id"; idempotencyKey = $null; bodyText = $null; recoveryAttempt = 0 }
         }
-        $pollRequests | ForEach-Object -ThrottleLimit $concurrency -Parallel {
-            $remaining = [int][Math]::Floor(($using:deadline - [DateTime]::UtcNow).TotalSeconds)
-            if ($remaining -ge 1) {
-                $send = [scriptblock]::Create($using:invokeHttpText)
-                & $send $_ $using:accessToken ([Math]::Min(10, $remaining))
-            }
-        } | ForEach-Object {
+        Invoke-ParallelWork -InputObject @($pollRequests) -ScriptBlock $parallelHttp -ArgumentList @($deadline, $invokeHttpText, $accessToken, $compatPath) -ThrottleLimit $concurrency | ForEach-Object {
             Add-JsonLine $paths.polls @{ request = $_.request; response = $_.response }
             if ($_.response.httpStatus -eq 200 -and $_.response.body -is [System.Collections.IDictionary]) {
                 $body = $_.response.body

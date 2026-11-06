@@ -1,0 +1,81 @@
+{
+    "runId":  "f1956c35c8bf4c44807cdae946b7bf87",
+    "status":  "PASS",
+    "outputDirectory":  "C:\\Users\\Admin\\test-results\\flashsale-batch-20261103154609\\main",
+    "customer":  "alice",
+    "productId":  "11111111-1111-1111-1111-111111111111",
+    "quantity":  1,
+    "plannedUniqueOrders":  200,
+    "plannedDuplicateRequests":  100,
+    "plannedBulkHttpRequests":  300,
+    "plannedHttpRequests":  301,
+    "conflictProbe":  {
+                          "idempotencyKey":  "batch-f1956c35c8bf4c44807cdae946b7bf87-1",
+                          "httpStatus":  409,
+                          "expectedHttpStatus":  409
+                      },
+    "submissionDurationMs":  9794,
+    "completionDurationMs":  28264,
+    "consistencyScope":  "HTTP-observed wallet/stock totals on an isolated stack; ledger/orphan checks require a separate primary DB audit",
+    "submissionAndCompletionDurationMs":  38058,
+    "observedConsistency":  {
+                                "walletBefore":  100000000.00,
+                                "expectedStockAfter":  0,
+                                "completedUnits":  100,
+                                "walletDebitedVnd":  9900000.00,
+                                "walletAfter":  90100000.00,
+                                "stockAfter":  0,
+                                "completedOrderAmountVnd":  9900000.00,
+                                "stockBefore":  100
+                            },
+    "duplicateIdMismatches":  [
+
+                              ],
+    "assertions":  {
+                       "allBulkRequestsRecorded":  true,
+                       "noPermanentBulkHttpErrors":  true,
+                       "everyLogicalOrderAcknowledged":  true,
+                       "noDuplicateOrderIds":  true,
+                       "conflictReturns409":  true,
+                       "allKnownOrdersTerminal":  true,
+                       "completedUnitsWithinBaselineStock":  true,
+                       "stockMatchesCompletedUnits":  true,
+                       "walletMatchesCompletedOrderAmounts":  true
+                   },
+    "actualBulkHttpRequests":  300,
+    "actualRecoveryHttpRequests":  5,
+    "actualConflictHttpRequests":  1,
+    "actualHttpRequests":  306,
+    "bulkHttpStatusCounts":  {
+                                 "202":  282,
+                                 "503":  18
+                             },
+    "recoveryHttpStatusCounts":  {
+                                     "202":  5
+                                 },
+    "httpStatusCounts":  {
+                             "202":  287,
+                             "409":  1,
+                             "503":  18
+                         },
+    "requestLatencyMs":  {
+                             "p50":  767.008,
+                             "p95":  1407.205,
+                             "p99":  1563.745
+                         },
+    "distinctOrders":  200,
+    "completedOrders":  100,
+    "rejectedOrders":  100,
+    "pendingOrders":  0,
+    "rejectionReasons":  {
+                             "OUT_OF_STOCK":  100
+                         },
+    "unacknowledgedLogicalKeys":  [
+
+                                  ],
+    "totalDurationMs":  39729,
+    "finishedAtUtc":  "2026-11-03T08:54:29.9438640Z",
+    "failureMessages":  [
+
+                        ]
+}

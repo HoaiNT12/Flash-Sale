@@ -1,4 +1,4 @@
-#requires -Version 7.3
+#requires -Version 5.1
 param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^[a-z0-9][a-z0-9_-]*$')]
@@ -14,8 +14,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-# Preserve the quotes inside a JSON UUID array passed as one psql -v argument.
-$PSNativeCommandArgumentPassing = 'Standard'
+
+. (Join-Path $PSScriptRoot 'powershell-compat.ps1')
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $outputRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
 New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
@@ -35,17 +35,35 @@ function Export-Snapshot {
         'exec', '-T', $Service, 'psql', '-U', 'postgres', '-d', $Database,
         '-X', '-A', '-t', '-v', 'ON_ERROR_STOP=1'
     )
+    $prelude = [Collections.Generic.List[string]]::new()
     foreach ($name in @($Variables.Keys | Sort-Object)) {
-        # Each name=value is one native argument. SQL uses psql's :'name' quoting.
-        $nativeArguments += @('-v', "${name}=$($Variables[$name])")
+        if ($name -notmatch '^[a-z][a-z0-9_]*$') { throw 'Invalid audit SQL variable name' }
+        # Native Windows argument handling differs between PS5.1 and PS7. Pass
+        # values through stdin as ASCII hex instead: no JSON quote stripping,
+        # command-line length limit, or untrusted text in SQL/psql directives.
+        $bytes = [Text.Encoding]::UTF8.GetBytes([string]$Variables[$name])
+        $hex = [BitConverter]::ToString($bytes).Replace('-', '').ToLowerInvariant()
+        $prelude.Add(("\set {0}_hex '{1}'" -f $name, $hex))
+        $prelude.Add(("SELECT convert_from(decode(:'{0}_hex', 'hex'), 'UTF8') AS {0} \gset" -f $name))
     }
-    $raw = @(Get-Content -LiteralPath $sqlPath -Raw -Encoding utf8 | & docker @nativeArguments)
-    if ($LASTEXITCODE -ne 0) {
-        throw "Docker/psql audit for $Kind failed with exit code $LASTEXITCODE"
+    $sql = ($prelude.ToArray() -join "`n") + "`n" + (Get-Content -LiteralPath $sqlPath -Raw -Encoding utf8)
+    # Input encoding is local to this function. Native output decoding follows
+    # Console.OutputEncoding on Windows PowerShell, so restore it after the call.
+    $OutputEncoding = [Text.UTF8Encoding]::new($false)
+    $previousConsoleEncoding = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+        $raw = @($sql | & docker @nativeArguments)
+        $nativeExitCode = $LASTEXITCODE
+    } finally {
+        [Console]::OutputEncoding = $previousConsoleEncoding
+    }
+    if ($nativeExitCode -ne 0) {
+        throw "Docker/psql audit for $Kind failed with exit code $nativeExitCode"
     }
     $json = ($raw -join "`n").Trim()
     if ([string]::IsNullOrWhiteSpace($json)) { throw "Empty $Kind audit response" }
-    $snapshot = ConvertFrom-Json -InputObject $json -Depth 100
+    $snapshot = ConvertFrom-CompatJson -InputObject $json
     if ($null -eq $snapshot -or $snapshot.database -ne $Database) {
         throw "Unexpected database in $Kind audit response"
     }
